@@ -180,7 +180,7 @@ else:
                 with col2:
                     st.metric("💬 Sentiment", customer['sentiment_score'])
                     st.metric("🟢 NPS Score", customer['nps_score'])
-        st.divider()
+        
         colm5, colm6 = st.columns(2)
 
         with colm5:
@@ -203,9 +203,9 @@ else:
                 fig_campaign = px.line(x=days, y=open_rates, labels={'x': 'Day', 'y': 'Email Open Rate'})
                 st.plotly_chart(fig_campaign, use_container_width=True)
 
-
+        st.divider()
         # --- ML Prediction ---
-        st.subheader(f"🤖 Churn Prediction for Customer")
+        st.markdown("## 🤖 Churn Prediction for Customer")
 
         # Prepare input dict for preprocess
         input_dict = customer.to_dict()

@@ -234,7 +234,7 @@ else:
                     chain = prompt | llm | parser
 
                     result = chain.invoke({"feature_shap_importance": escaped_feature_shap_importance, "proba": proba})
-                    st.write(f"### SHAP Analysis \n {result}")
+                    st.write(f"### 📄 Churn Insights Report \n {result}")
 
 
         st.divider()

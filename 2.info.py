@@ -33,14 +33,9 @@ def prompt(feature_shap_importance: dict ,proba: int):
                     - Models Predicted Churn Probability: {proba}
                 Based on this information, explain to the agent in non-technical terms:
                     1. Provide summary of who the customer is froe user context features and his current status of action context features.
-                    2. What is the customers predicted churn status with probability? Use the following scale:
-                        - Under 0.1 : Less likely
-                        - 0.1 to 0.5 : Likely
-                        - 0.5 to 0.7 : Very likely
-                    - Above 0.7 : Highly likely
-                    3. Identify the top 3 reasons for the customers potential churn. Provide a brief explanation of why these
+                    2. Identify the top 3 reasons for the customers potential churn. Provide a brief explanation of why these
                     features significantly influence the churn prediction.
-                    4. Suggest the top 3 actions the agent can take to reduce the likelihood of churn, based on the feature impacts. Each suggestion should include:
+                    3. Suggest the top 3 actions the agent can take to reduce the likelihood of churn, based on the feature impacts. Each suggestion should include:
                         - An explanation of why this action is expected to impact churn, based solely on the data provided.
                 Remember :
                     - The magnitude of a SHAP value indicates the strength of a feature's influence on the prediction.

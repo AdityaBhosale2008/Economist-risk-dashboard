@@ -8,3 +8,5 @@ seaborn
 shap 
 xgboost
 plotly
+langchain
+langchain-openai

@@ -33,17 +33,14 @@ def prompt(feature_shap_importance: dict ,proba: int):
                     - Models Predicted Churn Probability: {proba}
                 Based on this information, explain to the agent in non-technical terms:
                     1. Provide summary of who the customer is froe user context features and his current status of action context features.
-                        - A short concise summary in under 100 words.
                     2. What is the customers predicted churn status with probability? Use the following scale:
                         - Under 0.1 : Less likely
                         - 0.1 to 0.5 : Likely
                         - 0.5 to 0.7 : Very likely
                     - Above 0.7 : Highly likely
-                    Answer in 10 words.
-                    3. Identify the top 3 reasons for the customers potential churn. Provide a brief explanation (within 50 words for each) of why these
+                    3. Identify the top 3 reasons for the customers potential churn. Provide a brief explanation of why these
                     features significantly influence the churn prediction.
                     4. Suggest the top 3 actions the agent can take to reduce the likelihood of churn, based on the feature impacts. Each suggestion should include:
-                        - A concise recommendation (20 words)
                         - An explanation of why this action is expected to impact churn, based solely on the data provided.
                 Remember :
                     - The magnitude of a SHAP value indicates the strength of a feature's influence on the prediction.
@@ -198,8 +195,12 @@ else:
                 st.success(f"📊 **Prediction:** {result}")
             else:
                 st.error("📊 **Prediction:** Already Churned")    
-                
-    # SHAP GRAPH
+            
+            st.info(f"🧠 Model Confidence: **{proba * 100:.2f}%** for Churn")
+
+            report_button = st.button("Get Report")       
+        with col2: 
+            # SHAP GRAPH
             with st.container(border=True):
                 # SHAP Feature Importance
                 st.subheader("🔎 Feature Importance")
@@ -225,20 +226,16 @@ else:
                 st.plotly_chart(fig_waterfall, use_container_width=True)
 
             
-        with col2:
-            # st.info(f"🧠 Model Confidence: **{proba * 100:.2f}%** for Churn")
-            report_button = st.button("Get Report")
-            if report_button:
-                with st.spinner("Generating Report..."):
-                    with st.container(border=True):
-                        chain = prompt | llm | parser
-                        
-                        result = chain.invoke({"feature_shap_importance": escaped_feature_shap_importance, "proba": proba})
-                        st.markdown(f"### SHAP Analysis \n {result}")
 
-        # with st.container(border=True):
-        #     st.markdown("### Recommendations after Analysis with help of LLM")
-        #     st.markdown("""1.\n 2.\n  3.\n 4.\n 5.\n 6.""")
+
+        if report_button:
+            with st.spinner("Generating Report..."):
+                with st.container(border=True):
+                    chain = prompt | llm | parser
+
+                    result = chain.invoke({"feature_shap_importance": escaped_feature_shap_importance, "proba": proba})
+                    st.write(f"### SHAP Analysis \n {result}")
+
 
         st.divider()
 

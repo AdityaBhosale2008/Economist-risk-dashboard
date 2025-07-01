@@ -13,8 +13,6 @@ from langchain_core.output_parsers import StrOutputParser
 
 import os
 
-from dotenv import load_dotenv
-load_dotenv()
 
 NVIDIA_API_KEY = os.getenv("NVIDIA_API_KEY")
 

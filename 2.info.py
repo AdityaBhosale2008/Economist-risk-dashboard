@@ -7,6 +7,60 @@ import plotly.graph_objects as go
 import matplotlib.pyplot as plt
 import plotly.express as px
 
+from langchain.prompts import ChatPromptTemplate
+from langchain_openai import ChatOpenAI
+from langchain_core.output_parsers import StrOutputParser
+
+import os
+
+from dotenv import load_dotenv
+load_dotenv()
+
+NVIDIA_API_KEY = os.getenv("NVIDIA_API_KEY")
+
+
+llm = ChatOpenAI(
+    openai_api_base="https://integrate.api.nvidia.com/v1",
+    openai_api_key=NVIDIA_API_KEY,
+    model="nvidia/llama-3.1-nemotron-ultra-253b-v1"
+)
+
+def prompt(feature_shap_importance: dict ,proba: int): 
+    system_message = f"""
+                YOU ARE AN MACHINE LEARNING MODEL EXPLAINABILITY EXPERT
+                Here are the details for a  is assisting:
+                    - Dictioary of feature_name, shap_impact and feature_importance for xgboost machine learning model: {feature_shap_importance}
+                    - Models Predicted Churn Probability: {proba}
+                Based on this information, explain to the agent in non-technical terms:
+                    1. Provide summary of who the customer is froe user context features and his current status of action context features.
+                        - A short concise summary in under 100 words.
+                    2. What is the customers predicted churn status with probability? Use the following scale:
+                        - Under 0.1 : Less likely
+                        - 0.1 to 0.5 : Likely
+                        - 0.5 to 0.7 : Very likely
+                    - Above 0.7 : Highly likely
+                    Answer in 10 words.
+                    3. Identify the top 3 reasons for the customers potential churn. Provide a brief explanation (within 50 words for each) of why these
+                    features significantly influence the churn prediction.
+                    4. Suggest the top 3 actions the agent can take to reduce the likelihood of churn, based on the feature impacts. Each suggestion should include:
+                        - A concise recommendation (20 words)
+                        - An explanation of why this action is expected to impact churn, based solely on the data provided.
+                Remember :
+                    - The magnitude of a SHAP value indicates the strength of a feature's influence on the prediction.
+                    - Positive SHAP values increase the likelihood of churn; negative values decrease it.
+                    - Feature Importances values adds up to 1, greater the value higher the feature is important in prediction.
+                    - Recommendations should be strictly based on the information provided in the SHAP contributions and customer features.
+            """
+    return system_message
+
+def escape_curly_braces(s):
+    return s.replace("{", "{{").replace("}", "}}")
+
+parser = StrOutputParser()
+
+
+
+
 
 @st.cache_data
 def load_data():
@@ -59,6 +113,7 @@ def preprocess(user_input):
 
 
 
+
 # Check if the session state has the selected customer id
 
 if 'selected_customer_id' not in st.session_state:
@@ -76,6 +131,118 @@ else:
         with col2:
             st.image("assets/logo.png",width=100)        
         st.divider()
+
+     # --- ML Prediction ---
+        st.markdown("## 🤖 Churn Prediction for Customer")
+
+        # Prepare input dict for preprocess
+        input_dict = customer.to_dict()
+        # Ensure correct string values for categorical fields
+        input_dict['auto_renew'] = str(input_dict['auto_renew'])
+        input_dict['discount_used_last_renewal'] = str(input_dict['discount_used_last_renewal'])
+        input_dict['downgrade_history'] = str(input_dict['downgrade_history'])
+        input_dict['previous_renewal_status'] = str(input_dict['previous_renewal_status'])
+        input_dict['subscription_type'] = str(input_dict['subscription_type'])
+        input_dict['plan_type'] = str(input_dict['plan_type'])
+        input_dict['signup_source'] = str(input_dict['signup_source'])
+        input_dict['region'] = str(input_dict['region'])
+        input_dict['most_read_category'] = str(input_dict['most_read_category'])
+        input_dict['primary_device'] = str(input_dict['primary_device'])
+        input_dict['payment_method'] = str(input_dict['payment_method'])
+        input_dict['last_campaign_engaged'] = str(input_dict['last_campaign_engaged'])
+
+        # Preprocess and predict
+        X = preprocess(input_dict)
+        model = load_xgb_model()
+        prediction = model.predict(X)[0]
+        proba = model.predict_proba(X)[0][1]
+
+
+
+        feature_importances = model.feature_importances_
+        
+        explainer = shap.TreeExplainer(model)
+        shap_values = explainer(X)
+        row = shap_values[0]
+        shap_impact = row.values
+        features = row.feature_names 
+
+        feature_shap_importance = {
+            feature: {
+                'shap_impact': float(shap),
+                'feature_importance': float(importance)
+            }
+            for feature, shap, importance in zip(features, shap_impact, feature_importances)
+        }
+
+        escaped_feature_shap_importance = escape_curly_braces(str(feature_shap_importance))
+        prompt_template = prompt(escaped_feature_shap_importance, proba)
+        prompt = ChatPromptTemplate.from_messages([
+                    ("system", prompt_template),
+                    ("human", "")
+                ])
+        
+
+
+        col1, col2 = st.columns(2)
+
+        with col1:
+            if input_dict['churn_risk'] == "High":
+                result = "High " + " " + "Risk of Churn"
+                st.error(f"📊 **Prediction:** {result}")
+            elif input_dict['churn_risk'] == "Medium":
+                result = "Medium " + " " + "Risk of Churn"
+                st.warning(f"📊 **Prediction:** {result}")
+            elif input_dict['churn_risk'] == "Low":
+                result = "Low " + " " + "Risk of Churn"
+                st.success(f"📊 **Prediction:** {result}")
+            else:
+                st.error("📊 **Prediction:** Already Churned")    
+                
+    # SHAP GRAPH
+            with st.container(border=True):
+                # SHAP Feature Importance
+                st.subheader("🔎 Feature Importance")
+                top_idx = np.argsort(np.abs(shap_impact))[-10:]
+                top_features = [features[i] for i in top_idx]
+                top_shap = shap_impact[top_idx]
+                fig_waterfall = go.Figure(go.Waterfall(
+                    orientation="h",
+                    measure=["relative"] * len(top_features),
+                    x=top_shap,
+                    y=top_features,
+                    text=[f"{v:.3f}" for v in top_shap],
+                    connector={"line": {"color": "rgb(63, 63, 63)"}},
+                    decreasing={"marker": {"color": "green"}},
+                    increasing={"marker": {"color": "red"}},
+                ))
+                fig_waterfall.update_layout(
+                    title="",
+                    xaxis_title="SHAP Value Impact",
+                    yaxis_title="Feature",
+                    waterfallgap=0.4
+                )
+                st.plotly_chart(fig_waterfall, use_container_width=True)
+
+            
+        with col2:
+            # st.info(f"🧠 Model Confidence: **{proba * 100:.2f}%** for Churn")
+            report_button = st.button("Get Report")
+            if report_button:
+                with st.spinner("Generating Report..."):
+                    with st.container(border=True):
+                        chain = prompt | llm | parser
+                        
+                        result = chain.invoke({"feature_shap_importance": escaped_feature_shap_importance, "proba": proba})
+                        st.markdown(f"### SHAP Analysis \n {result}")
+
+        # with st.container(border=True):
+        #     st.markdown("### Recommendations after Analysis with help of LLM")
+        #     st.markdown("""1.\n 2.\n  3.\n 4.\n 5.\n 6.""")
+
+        st.divider()
+
+
         # Personal Info
         with st.container(border=True):
             col_1, col_2, col_3 = st.columns([1.5,1.5,1])
@@ -180,7 +347,7 @@ else:
                 with col2:
                     st.metric("💬 Sentiment", customer['sentiment_score'])
                     st.metric("🟢 NPS Score", customer['nps_score'])
-        
+
         colm5, colm6 = st.columns(2)
 
         with colm5:
@@ -204,77 +371,4 @@ else:
                 st.plotly_chart(fig_campaign, use_container_width=True)
 
         st.divider()
-        # --- ML Prediction ---
-        st.markdown("## 🤖 Churn Prediction for Customer")
-
-        # Prepare input dict for preprocess
-        input_dict = customer.to_dict()
-        # Ensure correct string values for categorical fields
-        input_dict['auto_renew'] = str(input_dict['auto_renew'])
-        input_dict['discount_used_last_renewal'] = str(input_dict['discount_used_last_renewal'])
-        input_dict['downgrade_history'] = str(input_dict['downgrade_history'])
-        input_dict['previous_renewal_status'] = str(input_dict['previous_renewal_status'])
-        input_dict['subscription_type'] = str(input_dict['subscription_type'])
-        input_dict['plan_type'] = str(input_dict['plan_type'])
-        input_dict['signup_source'] = str(input_dict['signup_source'])
-        input_dict['region'] = str(input_dict['region'])
-        input_dict['most_read_category'] = str(input_dict['most_read_category'])
-        input_dict['primary_device'] = str(input_dict['primary_device'])
-        input_dict['payment_method'] = str(input_dict['payment_method'])
-        input_dict['last_campaign_engaged'] = str(input_dict['last_campaign_engaged'])
-
-        # Preprocess and predict
-        X = preprocess(input_dict)
-        model = load_xgb_model()
-        prediction = model.predict(X)[0]
-        proba = model.predict_proba(X)[0][1]
-        result = "Churn" if prediction == 1 else "No Churn"
-
-        col1, col2 = st.columns(2)
-        with col1:
-            st.success(f"📊 **Prediction:** {result}")
-        with col2:
-            st.info(f"🧠 Model Confidence: **{proba * 100:.2f}%** for Churn")
-        
-        col3, col4 = st.columns(2)
-        with col3:            
-            with st.container(border=True):
-                # SHAP Feature Importance
-                st.subheader("🔎 Feature Importance")
-                explainer = shap.TreeExplainer(model)
-                shap_values = explainer(X)
-                row = shap_values[0]
-                shap_impact = row.values
-                features = row.feature_names
-                top_idx = np.argsort(np.abs(shap_impact))[-10:]
-                top_features = [features[i] for i in top_idx]
-                top_shap = shap_impact[top_idx]
-                fig_waterfall = go.Figure(go.Waterfall(
-                    orientation="h",
-                    measure=["relative"] * len(top_features),
-                    x=top_shap,
-                    y=top_features,
-                    text=[f"{v:.3f}" for v in top_shap],
-                    connector={"line": {"color": "rgb(63, 63, 63)"}},
-                    decreasing={"marker": {"color": "green"}},
-                    increasing={"marker": {"color": "red"}},
-                ))
-                fig_waterfall.update_layout(
-                    title="",
-                    xaxis_title="SHAP Value Impact",
-                    yaxis_title="Feature",
-                    waterfallgap=0.4
-                )
-                st.plotly_chart(fig_waterfall, use_container_width=True)
-        with col4:
-            report_button = st.button("Get Report")
-            if report_button:
-                with st.container(border=True):
-                    st.markdown("### LLM Generated SHAP Analysis")
-
-        st.divider()
-
-        with st.container(border=True):
-            st.markdown("### Recommendations after Analysis with help of LLM")
-            st.markdown("""1.\n 2.\n  3.\n 4.\n 5.\n 6.""")
-
+   

@@ -13,6 +13,8 @@ from langchain_core.output_parsers import StrOutputParser
 
 import os
 
+# from dotenv import load_dotenv
+# load_dotenv()
 
 NVIDIA_API_KEY = os.getenv("NVIDIA_API_KEY")
 
@@ -194,7 +196,7 @@ else:
             else:
                 st.error("📊 **Prediction:** Already Churned")    
             
-            st.info(f"🧠 Model Confidence: **{proba * 100:.2f}%** for Churn")
+            # st.info(f"🧠 Model Confidence: **{proba * 100:.2f}%** for Churn")
 
             report_button = st.button("Get Report")       
         with col2: 

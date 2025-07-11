@@ -12,9 +12,8 @@ from langchain_openai import ChatOpenAI
 from langchain_core.output_parsers import StrOutputParser
 
 import os
-from langsmith.callbacks import LangSmithCallbackHandler
 
-handler = LangSmithCallbackHandler()
+
 # from dotenv import load_dotenv
 # load_dotenv()
 
@@ -24,6 +23,8 @@ os.environ["LANGCHAIN_TRACING_V2"] = st.secrets["LANGCHAIN_TRACING_V2"]
 os.environ["LANGCHAIN_API_KEY"] = st.secrets["LANGCHAIN_API_KEY"]
 os.environ["LANGCHAIN_PROJECT"] = st.secrets["LANGCHAIN_PROJECT"]
 
+os.environ["LANGCHAIN_TRACING_V2"]="true"
+os.environ["LANGCHAIN_API_KEY"]=os.getenv("LANGCHAIN_API_KEY")
 
 llm = ChatOpenAI(
     openai_api_base="https://integrate.api.nvidia.com/v1",
@@ -234,7 +235,7 @@ else:
                 with st.container(border=True):
                     chain = prompt | llm | parser
 
-                    result = chain.invoke({"feature_shap_importance": escaped_feature_shap_importance, "proba": proba},config={"callbacks": [handler]})
+                    result = chain.invoke({"feature_shap_importance": escaped_feature_shap_importance, "proba": proba})
                     st.write(f"### 📄 Churn Insights Report \n {result}")
 
 

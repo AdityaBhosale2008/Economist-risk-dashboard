@@ -18,9 +18,9 @@ import os
 
 NVIDIA_API_KEY = os.getenv("NVIDIA_API_KEY")
 
-
-# LANGSMITH_API_KEY = os.getenv("LANGSMITH_API_KEY")
-# LANGSMITH_TRACING = os.getenv["LANGSMITH_TRACING"]
+os.environ["LANGCHAIN_TRACING_V2"] = st.secrets["LANGCHAIN_TRACING_V2"]
+os.environ["LANGCHAIN_API_KEY"] = st.secrets["LANGCHAIN_API_KEY"]
+os.environ["LANGCHAIN_PROJECT"] = st.secrets["LANGCHAIN_PROJECT"]
 
 
 llm = ChatOpenAI(

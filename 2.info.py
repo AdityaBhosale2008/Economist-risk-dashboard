@@ -12,7 +12,9 @@ from langchain_openai import ChatOpenAI
 from langchain_core.output_parsers import StrOutputParser
 
 import os
+from langsmith.callbacks import LangSmithCallbackHandler
 
+handler = LangSmithCallbackHandler()
 # from dotenv import load_dotenv
 # load_dotenv()
 
@@ -232,7 +234,7 @@ else:
                 with st.container(border=True):
                     chain = prompt | llm | parser
 
-                    result = chain.invoke({"feature_shap_importance": escaped_feature_shap_importance, "proba": proba})
+                    result = chain.invoke({"feature_shap_importance": escaped_feature_shap_importance, "proba": proba},config={"callbacks": [handler]})
                     st.write(f"### 📄 Churn Insights Report \n {result}")
 
 

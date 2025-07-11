@@ -18,6 +18,8 @@ import os
 
 NVIDIA_API_KEY = os.getenv("NVIDIA_API_KEY")
 
+os.environ["LANGCHAIN_TRACING_V2"]="true"
+os.environ["LANGCHAIN_API_KEY"]=os.getenv("LANGCHAIN_API_KEY")
 
 llm = ChatOpenAI(
     openai_api_base="https://integrate.api.nvidia.com/v1",

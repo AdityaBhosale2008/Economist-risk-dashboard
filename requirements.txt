@@ -10,3 +10,4 @@ xgboost
 plotly
 langchain
 langchain-openai
+langsmith
